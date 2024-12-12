@@ -1,5 +1,5 @@
 /* eslint-disable react/no-array-index-key */
-import useSWR, { SWRConfig } from "swr";
+import useSWR, { unstable_serialize as unstableSerialize, SWRConfig } from "swr";
 import Head from "next/head";
 import Script from "next/script";
 import dynamic from "next/dynamic";
@@ -10,6 +10,7 @@ import { BiError } from "react-icons/bi";
 import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 import { useRouter } from "next/router";
 
+import NullIdentityProvider from "utils/identity/null";
 import Tab, { slugifyAndEncode } from "components/tab";
 import ServicesGroup from "components/services/group";
 import BookmarksGroup from "components/bookmarks/group";
@@ -26,6 +27,7 @@ import { bookmarksResponse, servicesResponse, widgetsResponse } from "utils/conf
 import ErrorBoundary from "components/errorboundry";
 import themes from "utils/styles/themes";
 import QuickLaunch from "components/quicklaunch";
+import { fetchWithIdentity, readIdentitySettings } from "utils/identity/identity-helpers";
 
 const ThemeToggle = dynamic(() => import("components/toggles/theme"), {
   ssr: false,
@@ -41,25 +43,28 @@ const Version = dynamic(() => import("components/version"), {
 
 const rightAlignedWidgets = ["weatherapi", "openweathermap", "weather", "openmeteo", "search", "datetime"];
 
-export async function getStaticProps() {
+export async function getServerSideProps({ req }) {
   let logger;
   try {
     logger = createLogger("index");
-    const { providers, ...settings } = getSettings();
+    const { providers, identity, ...settings } = getSettings();
+    const { provider, groups } = readIdentitySettings(identity);
 
-    const services = await servicesResponse();
-    const bookmarks = await bookmarksResponse();
-    const widgets = await widgetsResponse();
+    const services = await servicesResponse(provider.getIdentity(req), groups);
+    const bookmarks = await bookmarksResponse(provider.getIdentity(req), groups);
+    const widgets = await widgetsResponse(provider.getIdentity(req));
+    const identityContext = provider.getContext(req);
 
     return {
       props: {
         initialSettings: settings,
         fallback: {
-          "/api/services": services,
-          "/api/bookmarks": bookmarks,
-          "/api/widgets": widgets,
+          [unstableSerialize(["/api/services", identityContext])]: services,
+          [unstableSerialize(["/api/bookmarks", identityContext])]: bookmarks,
+          [unstableSerialize(["/api/widgets", identityContext])]: widgets,
           "/api/hash": false,
         },
+        identityContext,
         ...(await serverSideTranslations(settings.language ?? "en")),
       },
     };
@@ -67,22 +72,24 @@ export async function getStaticProps() {
     if (logger && e) {
       logger.error(e);
     }
+    const identityContext = NullIdentityProvider.create().getContext(req);
     return {
       props: {
         initialSettings: {},
         fallback: {
-          "/api/services": [],
-          "/api/bookmarks": [],
-          "/api/widgets": [],
+          [unstableSerialize(["/api/services", identityContext])]: [],
+          [unstableSerialize(["/api/bookmarks", identityContext])]: [],
+          [unstableSerialize(["/api/widgets", identityContext])]: [],
           "/api/hash": false,
         },
+        identityContext,
         ...(await serverSideTranslations("en")),
       },
     };
   }
 }
 
-function Index({ initialSettings, fallback }) {
+function Index({ initialSettings, fallback, identityContext }) {
   const windowFocused = useWindowFocus();
   const [stale, setStale] = useState(false);
   const { data: errorsData } = useSWR("/api/validate");
@@ -152,7 +159,7 @@ function Index({ initialSettings, fallback }) {
   return (
     <SWRConfig value={{ fallback, fetcher: (resource, init) => fetch(resource, init).then((res) => res.json()) }}>
       <ErrorBoundary>
-        <Home initialSettings={initialSettings} />
+        <Home initialSettings={initialSettings} identityContext={identityContext} />
       </ErrorBoundary>
     </SWRConfig>
   );
@@ -166,7 +173,7 @@ const headerStyles = {
   boxedWidgets: "m-5 mb-0 sm:m-9 sm:mb-0 sm:mt-1",
 };
 
-function Home({ initialSettings }) {
+function Home({ initialSettings, identityContext }) {
   const { i18n } = useTranslation();
   const { theme, setTheme } = useContext(ThemeContext);
   const { color, setColor } = useContext(ColorContext);
@@ -178,9 +185,9 @@ function Home({ initialSettings }) {
     setSettings(initialSettings);
   }, [initialSettings, setSettings]);
 
-  const { data: services } = useSWR("/api/services");
-  const { data: bookmarks } = useSWR("/api/bookmarks");
-  const { data: widgets } = useSWR("/api/widgets");
+  const { data: services } = useSWR(["/api/services", identityContext], fetchWithIdentity);
+  const { data: bookmarks } = useSWR(["/api/bookmarks", identityContext], fetchWithIdentity);
+  const { data: widgets } = useSWR(["/api/widgets", identityContext], fetchWithIdentity);
 
   const servicesAndBookmarks = [
     ...services.map((sg) => sg.services).flat(),
@@ -458,7 +465,7 @@ function Home({ initialSettings }) {
   );
 }
 
-export default function Wrapper({ initialSettings, fallback }) {
+export default function Wrapper({ initialSettings, fallback, identityContext }) {
   const { theme } = useContext(ThemeContext);
   const wrappedStyle = {};
   let backgroundBlur = false;
@@ -511,7 +518,7 @@ export default function Wrapper({ initialSettings, fallback }) {
             backgroundBrightness && `backdrop-brightness-${initialSettings.background.brightness}`,
           )}
         >
-          <Index initialSettings={initialSettings} fallback={fallback} />
+          <Index initialSettings={initialSettings} fallback={fallback} identityContext={identityContext} />
         </div>
       </div>
     </div>
