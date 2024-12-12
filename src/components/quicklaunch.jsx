@@ -22,7 +22,7 @@ export default function QuickLaunch({ servicesAndBookmarks, searchString, setSea
   const [searchSuggestions, setSearchSuggestions] = useState([]);
 
   const { data: widgets } = useSWR("/api/widgets");
-  const searchWidget = Object.values(widgets).find((w) => w.type === "search");
+  const searchWidget = widgets && Object.values(widgets).find((w) => w.type === "search");
 
   let searchProvider;
 

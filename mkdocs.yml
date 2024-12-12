@@ -4,9 +4,9 @@ site_name: Homepage
 site_url: https://gethomepage.dev/
 
 # Repository
-repo_name: gethomepage/homepage
-repo_url: https://github.com/gethomepage/homepage
-edit_uri: https://github.com/gethomepage/homepage/tree/main/docs/
+repo_name: di0ik/homepage-plus
+repo_url: https://github.com/di0ik/homepage-plus
+edit_uri: https://github.com/di0ik/homepage-plus/tree/main/docs/
 
 nav:
   - "Home":
