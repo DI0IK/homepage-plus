@@ -2,8 +2,8 @@ name: Crowdin Action
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '2 */12 * * *'
+  # schedule:
+  #  - cron: '2 */12 * * *'
   push:
     paths: [
       '/public/locales/en/**',
