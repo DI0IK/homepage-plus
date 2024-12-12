@@ -6,15 +6,16 @@ name: Docker
 # documentation.
 
 on:
-  schedule:
-    - cron: '20 0 * * *'
+  # schedule:
+  #   - cron: '20 0 * * *'
   push:
     branches:
       - main
       - feature/**
       - dev
+      - homepage-plus
     # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
+    tags: [ 'v*.*.*-plus' ]
     paths-ignore:
       - 'docs/**'
       - 'mkdocs.yml'
@@ -24,6 +25,7 @@ on:
       - 'docs/**'
       - 'mkdocs.yml'
   merge_group:
+  workflow_dispatch:
 
 env:
   # github.repository as <account>/<repo>
@@ -45,20 +47,16 @@ jobs:
           python-version: 3.x
       -
         name: Check files
-        uses: pre-commit/action@v3.0.1
+        uses: pre-commit/action@v3.0.0
 
   build:
     name: Docker Build & Push
-    if:  github.repository == 'gethomepage/homepage'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs:
       - pre-commit
     permissions:
       contents: read
       packages: write
-      # This is used to complete the identity challenge
-      # with sigstore/fulcio when running outside of PRs.
-      id-token: write
 
     steps:
       - name: Checkout repository
@@ -75,13 +73,13 @@ jobs:
 
       # This step is being disabled because the runner is on a self-hosted machine
       # where the cache will stick between runs.
-      # - name: Cache Docker layers
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: /tmp/.buildx-cache
-      #     key: ${{ runner.os }}-buildx-${{ github.sha }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-buildx-
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
       # Login against a Docker registry except on PR
       # https://github.com/docker/login-action
