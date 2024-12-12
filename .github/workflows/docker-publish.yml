@@ -6,15 +6,16 @@ name: Docker
 # documentation.
 
 on:
-  schedule:
-    - cron: '20 0 * * *'
+  # schedule:
+  #   - cron: '20 0 * * *'
   push:
     branches:
       - main
       - feature/**
       - dev
+      - homepage-plus
     # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
+    tags: [ 'v*.*.*-plus' ]
     paths-ignore:
       - 'docs/**'
       - 'mkdocs.yml'
@@ -24,6 +25,7 @@ on:
       - 'docs/**'
       - 'mkdocs.yml'
   merge_group:
+  workflow_dispatch:
 
 env:
   # github.repository as <account>/<repo>
@@ -67,16 +69,12 @@ jobs:
 
   build:
     name: Docker Build & Push
-    if:  github.repository == 'gethomepage/homepage'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs:
       - pre-commit
     permissions:
       contents: read
       packages: write
-      # This is used to complete the identity challenge
-      # with sigstore/fulcio when running outside of PRs.
-      id-token: write
 
     steps:
       - name: Checkout repository
